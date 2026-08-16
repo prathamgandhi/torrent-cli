@@ -1,4 +1,5 @@
-package utils
+package bencode
+
 
 import (
 	"fmt"
@@ -116,7 +117,7 @@ func TestBenIntegerNegative(t *testing.T) {
 func TestBenListEmpty(t *testing.T) {
 	byteArray := []byte("le")
 	got, i, _ := ParseList(byteArray)
-	want := []BencodedValue{}
+	want := []Value{}
 
 	if !slices.Equal(got.Value, want) {
 		t.Errorf("Output slices don't match. Expected %v, got %v", want, got.Value)
@@ -131,8 +132,8 @@ func TestBenListEmpty(t *testing.T) {
 func TestBenListSingleInteger(t *testing.T) {
 	byteArray := []byte("li1ee")
 	got, i, _ := ParseList(byteArray)
-	want := []BencodedValue{
-		BencodedInteger{ Value: 1 },
+	want := []Value{
+		Integer{ Value: 1 },
 	}
 
 	if !slices.Equal(got.Value, want) {
@@ -148,8 +149,8 @@ func TestBenListSingleInteger(t *testing.T) {
 func TestBenListNegativeInteger(t *testing.T) {
 	byteArray := []byte("li-1ee")
 	got, i, _ := ParseList(byteArray)
-	want := []BencodedValue{
-		BencodedInteger{ Value: -1 },
+	want := []Value{
+		Integer{ Value: -1 },
 	}
 
 	if !slices.Equal(got.Value, want) {
@@ -165,9 +166,9 @@ func TestBenListNegativeInteger(t *testing.T) {
 func TestBenListNegativeIntegerAndString(t *testing.T) {
 	byteArray := []byte("li-1e6:codinge")
 	got, i, _ := ParseList(byteArray)
-	want := []BencodedValue{
-		BencodedInteger{ Value: -1 },
-		BencodedString{ Value: "coding" },
+	want := []Value{
+		Integer{ Value: -1 },
+		String{ Value: "coding" },
 	}
 
 	if !slices.Equal(got.Value, want) {
@@ -192,9 +193,9 @@ func TestBenListMultipleStringsInvalid(t *testing.T) {
 func TestBenListMultipleStringsValid(t *testing.T) {
 	byteArray := []byte("l4:star4:warse")
 	got, i, _ := ParseList(byteArray)
-	want := []BencodedValue{
-		BencodedString{ Value: "star" },
-		BencodedString{ Value: "wars" },
+	want := []Value{
+		String{ Value: "star" },
+		String{ Value: "wars" },
 	}
 
 	if !slices.Equal(got.Value, want) {
@@ -210,8 +211,8 @@ func TestBenListMultipleStringsValid(t *testing.T) {
 func TestBenListEmptyStringValid(t *testing.T) {
 	byteArray := []byte("l0:e")
 	got, i, _ := ParseList(byteArray)
-	want := []BencodedValue{
-		BencodedString{ Value: "" },
+	want := []Value{
+		String{ Value: "" },
 	}
 
 	if !slices.Equal(got.Value, want) {
@@ -228,7 +229,7 @@ func TestBenDictEmpty(t *testing.T) {
 	byteArray := []byte("de")
 	got, i, _ := ParseDict(byteArray)
 
-	want := map[BencodedString]BencodedValue{}
+	want := map[string]Value{}
 
 	if !reflect.DeepEqual(got.Value, want) {
 		t.Errorf("Output maps don't match. Expected %v, got %v", want, got.Value)
@@ -244,8 +245,8 @@ func TestBenDictSingleInteger(t *testing.T) {
 	byteArray := []byte("d1:ai1ee")
 	got, i, _ := ParseDict(byteArray)
 
-	want := map[BencodedString]BencodedValue{
-		{Value: "a"}: BencodedInteger{Value: 1},
+	want := map[string]Value{
+		"a": Integer{Value: 1},
 	}
 
 	if !reflect.DeepEqual(got.Value, want) {
@@ -262,8 +263,8 @@ func TestBenDictSingleString(t *testing.T) {
 	byteArray := []byte("d3:key5:valuee")
 	got, i, _ := ParseDict(byteArray)
 
-	want := map[BencodedString]BencodedValue{
-		{Value: "key"}: BencodedString{Value: "value"},
+	want := map[string]Value{
+		"key": String{Value: "value"},
 	}
 
 	if !reflect.DeepEqual(got.Value, want) {
@@ -280,10 +281,10 @@ func TestBenDictMultipleEntries(t *testing.T) {
 	byteArray := []byte("d1:ai1e1:b3:foo1:ci-5ee")
 	got, i, _ := ParseDict(byteArray)
 
-	want := map[BencodedString]BencodedValue{
-		{Value: "a"}: BencodedInteger{Value: 1},
-		{Value: "b"}: BencodedString{Value: "foo"},
-		{Value: "c"}: BencodedInteger{Value: -5},
+	want := map[string]Value{
+		"a": Integer{Value: 1},
+		"b": String{Value: "foo"},
+		"c": Integer{Value: -5},
 	}
 
 	if !reflect.DeepEqual(got.Value, want) {
@@ -336,3 +337,243 @@ func TestBenDictMissingTrailingE(t *testing.T) {
 	}
 }
 
+func TestParseValueNestedLists(t *testing.T) {
+	input := []byte("lli1ei2eei3ee")
+
+	got, i, err := ParseValue(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := List{
+		Value: []Value{
+			List{
+				Value: []Value{
+					Integer{1},
+					Integer{2},
+				},
+			},
+			Integer{3},
+		},
+	}
+
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("expected %#v, got %#v", want, got)
+	}
+
+	if i != len(input) {
+		t.Errorf("expected index %d got %d", len(input), i)
+	}
+}
+
+func TestParseValueDictWithList(t *testing.T) {
+	input := []byte("d4:listli1e3:abcee")
+
+	got, _, err := ParseValue(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := Dict{
+		Value: map[string]Value{
+			"list": List{
+				Value: []Value{
+					Integer{1},
+					String{"abc"},
+				},
+			},
+		},
+	}
+
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("expected %#v got %#v", want, got)
+	}
+}
+
+func TestParseValueListOfDicts(t *testing.T) {
+	input := []byte("ld1:ai1eed1:bi2eee")
+
+	got, _, err := ParseValue(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := List{
+		Value: []Value{
+			Dict{
+				Value: map[string]Value{
+					"a": Integer{1},
+				},
+			},
+			Dict{
+				Value: map[string]Value{
+					"b": Integer{2},
+				},
+			},
+		},
+	}
+
+	if !reflect.DeepEqual(got, want) {
+		t.Fail()
+	}
+}
+
+func TestParseValueNestedDicts(t *testing.T) {
+	input := []byte("d5:innerd1:ai42eee")
+
+	got, _, err := ParseValue(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := Dict{
+		Value: map[string]Value{
+			"inner": Dict{
+				Value: map[string]Value{
+					"a": Integer{42},
+				},
+			},
+		},
+	}
+
+	if !reflect.DeepEqual(got, want) {
+		t.Fail()
+	}
+}
+
+func TestParseValueDeepMixed(t *testing.T) {
+	input := []byte("d1:ali1ed1:b3:fooeli2ei3eeee")
+
+	got, _, err := ParseValue(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := Dict{
+		Value: map[string]Value{
+			"a": List{
+				Value: []Value{
+					Integer{1},
+					Dict{
+						Value: map[string]Value{
+							"b": String{"foo"},
+						},
+					},
+					List{
+						Value: []Value{
+							Integer{2},
+							Integer{3},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	if !reflect.DeepEqual(got, want) {
+		t.Fail()
+	}
+}
+
+func TestParseValueEmptyContainers(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  Value
+	}{
+		{
+			name:  "empty list",
+			input: "le",
+			want: List{
+				Value: []Value{},
+			},
+		},
+		{
+			name:  "empty dict",
+			input: "de",
+			want: Dict{
+				Value: map[string]Value{},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, i, err := ParseValue([]byte(tt.input))
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ParseValue(%q)\nwant: %#v\ngot:  %#v", tt.input, tt.want, got)
+			}
+
+			if i != len(tt.input) {
+				t.Errorf("next index: want %d, got %d", len(tt.input), i)
+			}
+		})
+	}
+}
+
+func TestParseValueUnterminatedNestedList(t *testing.T) {
+	input := []byte("lli1ei2e")
+
+	_, _, err := ParseValue(input)
+
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestParseValueUnterminatedDict(t *testing.T) {
+	input := []byte("d1:ad1:bi2ee")
+
+	_, _, err := ParseValue(input)
+
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestParseValueInvalidNestedValue(t *testing.T) {
+	input := []byte("li1exe")
+
+	_, _, err := ParseValue(input)
+
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestParseValueVeryDeep(t *testing.T) {
+	input := []byte("d1:ad1:bd1:cli1ei2e2:hieeee")
+
+	got, _, err := ParseValue(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := Dict{
+		Value: map[string]Value{
+			"a": Dict{
+				Value: map[string]Value{
+					"b": Dict{
+						Value: map[string]Value{
+							"c": List{
+								Value: []Value{
+									Integer{1},
+									Integer{2},
+									String{"hi"},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	if !reflect.DeepEqual(got, want) {
+		t.Fail()
+	}
+}
