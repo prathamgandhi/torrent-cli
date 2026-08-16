@@ -8,6 +8,7 @@ import (
 
 type BencodedValue interface {
 	PrintValue()
+	GetValue() any
 }
 
 type BencodedInteger struct {
@@ -16,12 +17,26 @@ type BencodedInteger struct {
 
 func (i BencodedInteger) PrintValue() {fmt.Println(i.Value)}
 
+func (i BencodedInteger) GetValue()(any) { return i.Value }
 
 type BencodedList struct {
 	Value []BencodedValue
 }
 
-func (BencodedList) PrintValue() {}
+func (b BencodedList) PrintValue() {
+	for _, v := range b.Value {
+		fmt.Print(v, " ")
+	}
+	fmt.Println()
+}
+
+func (b BencodedList) GetValue()(any) {
+	lissy := []any{}
+	for _, v := range b.Value {
+		lissy = append(lissy, v)
+	}
+	return lissy
+}
 
 type BencodedString struct {
 	Value string
@@ -29,12 +44,23 @@ type BencodedString struct {
 
 func (s BencodedString) PrintValue() {fmt.Println(s.Value)}
 
+func (s BencodedString) GetValue()(any) {
+	return s.Value
+}
+
 type BencodedDict struct {
 	Value map[BencodedString]BencodedValue
 }
 
-func (BencodedDict) PrintValue() {}
+func (d BencodedDict) PrintValue() {
+	for key, value := range d.Value {
+		fmt.Println(key.GetValue(), ":", value.GetValue())
+	}
+}
 
+func (d BencodedDict) GetValue() {
+	
+}
 
 // ParseString parses a bencoded string from the beginning of in.
 // It returns the parsed string, the index immediately after it,
@@ -85,7 +111,98 @@ func ParseInteger(in []byte) (BencodedInteger, int, error) {
 	return BencodedInteger{ Value: convertedInteger}, index+1, nil
 }
 
-func
+func ParseList(in []byte) (BencodedList, int, error) {
+	if len(in) == 0 {
+		return BencodedList{}, -1, io.EOF
+	}
+	index := 0
+	if in[index] != 'l' {
+		return BencodedList{}, -1, fmt.Errorf("Expected byte 'l', found %d", in[index])
+	}
+	index++
+	list := BencodedList{
+		Value: []BencodedValue{},
+	}
+	for index < len(in) && in[index] != 'e' {
+		var (
+			value BencodedValue
+			nextInd int
+			err error
+		)
+		if in[index] == 'i' {
+			value, nextInd, err = ParseInteger(in[index:])
+		} else if in[index] >= '0' && in[index] <= '9' {
+			value, nextInd, err = ParseString(in[index:])
+		} else {
+			return BencodedList{}, -1, fmt.Errorf("Reached early EOF")
+		}
+		if err != nil {
+			return BencodedList{}, -1, fmt.Errorf("Error while parsing the list, %s", err)
+		}
+		list.Value = append(list.Value, value)
+		index += nextInd
+	}
+	if index+1 != len(in) {
+		return BencodedList{}, -1, fmt.Errorf("End of list 'e' not found while parsing")
+	}
+	return list, index+1, nil
+}
+
+func ParseDict(in []byte) (BencodedDict, int, error) {
+	if len(in) == 0 {
+		return BencodedDict{}, -1, io.EOF
+	}
+	index := 0
+	if in[index] != 'd' {
+		return BencodedDict{}, -1, fmt.Errorf("Expected byte 'd', found %d", in[index])
+	}
+	index++
+	dict := BencodedDict{
+		Value: make(map[BencodedString]BencodedValue),
+	}
+	for index < len(in) && in[index] != 'e' {
+		var (
+			value BencodedValue
+			key BencodedString
+			nextInd int
+			err error
+		)
+		// Parse the key
+		if in[index] >= '0' && in[index] <= '9' {
+			key, nextInd, err = ParseString(in[index:])
+		} else {
+			return BencodedDict{}, int(-1), fmt.Errorf("Error parsing the dict. All keys must be string.")
+		}
+		if err != nil {
+			return BencodedDict{}, -1, fmt.Errorf("Error while parsing the dict, %s", err)
+		}
+
+		index += nextInd
+
+		// Parse the value
+		if index >= len(in) {
+			return BencodedDict{}, -1, fmt.Errorf("Reached early EOF")
+		}
+		if in[index] == 'i' {
+			value, nextInd, err = ParseInteger(in[index:])
+		} else if in[index] >= '0' && in[index] <= '9' {
+			value, nextInd, err = ParseString(in[index:])
+		} else {
+			return BencodedDict{}, -1, fmt.Errorf("Reached early EOF")
+		}
+		if err != nil {
+			return BencodedDict{}, -1, fmt.Errorf("Error while parsing the dict, %s", err)
+		}
+		dict.Value[key] = value
+
+		index += nextInd
+	}
+	if index+1 != len(in) {
+		return BencodedDict{}, -1, fmt.Errorf("End of dict 'e' not found while parsing")
+	}
+	return dict, index+1, nil
+}
+
 // func parseInt(in []byte) BencodedInteger {
 
 // }

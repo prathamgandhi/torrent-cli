@@ -4,8 +4,9 @@ import "simpletorrent/internal/utils"
 import "fmt"
 
 func main() {
-	byteArray := []byte("i3200000000000000000000000000000000000000e")
-	str, nextInd, err := utils.ParseInteger(byteArray)
+	// byteArray := []byte("li32e6:codinge")
+	byteArray := []byte("d1:ai1e1:b3:fooe")
+	str, nextInd, err := utils.ParseDict(byteArray)
 	str.PrintValue()
 	fmt.Println("NextIndex: ", nextInd)
 	fmt.Println(err)
