@@ -7,29 +7,29 @@ import (
 )
 
 
-func ParseValue(in []byte) (Value, int, error) {
+func DecodeValue(in []byte) (Value, int, error) {
 	if len(in) == 0 {
 		return nil, -1, io.EOF
 	}
 	switch in[0] {
 	case 'd':
-		return ParseDict(in)
+		return decodeDict(in)
 	case 'l':
-		return ParseList(in)
+		return decodeList(in)
 	case 'i':
-		return ParseInteger(in)
+		return decodeInteger(in)
 	default:
 		if in[0] >= '0' && in[0] <= '9' {
-			return ParseString(in)
+			return decodeString(in)
 		}
 	}
 	return nil, -1, fmt.Errorf("Invalid bencoded value")
 }
 
-// ParseString parses a bencoded string from the beginning of in.
-// It returns the parsed string, the index immediately after it,
+// decodeString Decodes a bencoded string from the beginning of in.
+// It returns the Decoded string, the index immediately after it,
 // and an error if the input is invalid or incomplete.
-func ParseString(in []byte) (String, int, error)  {
+func decodeString(in []byte) (String, int, error)  {
 	if len(in) == 0 {
 		return String{}, -1, io.EOF
 	}
@@ -52,7 +52,7 @@ func ParseString(in []byte) (String, int, error)  {
 	return String{ Value: string(in[index:index+intLength]) }, int(index+intLength), nil
 }
 
-func ParseInteger(in []byte) (Integer, int, error) {
+func decodeInteger(in []byte) (Integer, int, error) {
 	if len(in) == 0 {
 		return Integer{}, -1, io.EOF
 	}
@@ -75,7 +75,7 @@ func ParseInteger(in []byte) (Integer, int, error) {
 	return Integer{ Value: convertedInteger}, index+1, nil
 }
 
-func ParseList(in []byte) (List, int, error) {
+func decodeList(in []byte) (List, int, error) {
 	if len(in) == 0 {
 		return List{}, -1, io.EOF
 	}
@@ -93,7 +93,7 @@ func ParseList(in []byte) (List, int, error) {
 			nextInd int
 			err error
 		)
-		value, nextInd, err = ParseValue(in[index:])
+		value, nextInd, err = DecodeValue(in[index:])
 		
 		if err != nil {
 			return List{}, -1, fmt.Errorf("Error while parsing the list, %s", err)
@@ -107,7 +107,7 @@ func ParseList(in []byte) (List, int, error) {
 	return list, index+1, nil
 }
 
-func ParseDict(in []byte) (Dict, int, error) {
+func decodeDict(in []byte) (Dict, int, error) {
 	if len(in) == 0 {
 		return Dict{}, -1, io.EOF
 	}
@@ -126,9 +126,9 @@ func ParseDict(in []byte) (Dict, int, error) {
 			nextInd int
 			err error
 		)
-		// Parse the key
+		// Decode the key
 		if in[index] >= '0' && in[index] <= '9' {
-			key, nextInd, err = ParseString(in[index:])
+			key, nextInd, err = decodeString(in[index:])
 		} else {
 			return Dict{}, int(-1), fmt.Errorf("Error parsing the dict. All keys must be string.")
 		}
@@ -138,11 +138,11 @@ func ParseDict(in []byte) (Dict, int, error) {
 
 		index += nextInd
 
-		// Parse the value
+		// Decode the value
 		if index >= len(in) {
 			return Dict{}, -1, fmt.Errorf("Reached early EOF")
 		}
-		value, nextInd, err = ParseValue(in[index:])
+		value, nextInd, err = DecodeValue(in[index:])
 		
 		if err != nil {
 			return Dict{}, -1, fmt.Errorf("Error while parsing the dict, %s", err)

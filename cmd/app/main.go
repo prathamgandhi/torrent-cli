@@ -1,14 +1,17 @@
 package main
 
 import "simpletorrent/internal/bencode"
-import "fmt"
+
+func keysOf(d map[string]bencode.Value) []string {
+    keys := make([]string, 0, len(d))
+    for k := range d {
+        keys = append(keys, k)
+    }
+    return keys
+}
 
 func main() {
-	// byteArray := []byte("li32e6:codinge")
-	byteArray := []byte("d1:ali32eee")
-	str, nextInd, err := bencode.ParseValue(byteArray)
-	fmt.Println("Printing answers now: ")
-	fmt.Println(bencode.Describe(str))
-	fmt.Println("NextIndex: ", nextInd)
-	fmt.Println(err)
+	// link: https://releases.ubuntu.com/26.04/ubuntu-26.04-desktop-amd64.iso.torrent
+	// data, err := os.ReadFile("ubuntu-26.04-desktop-amd64.iso.torrent")
+	// fmt.Println(bencode.Describe(parsed))
 }
