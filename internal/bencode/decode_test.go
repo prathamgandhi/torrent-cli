@@ -10,7 +10,7 @@ import (
 
 func TestBenStringNonEmpty(t *testing.T) {
 	byteArray := []byte("12:hello worlds")
-	got, _, _ := ParseString(byteArray)
+	got, _, _ := decodeString(byteArray)
 	want := "hello worlds"
 
 	if got.Value != want {
@@ -20,7 +20,7 @@ func TestBenStringNonEmpty(t *testing.T) {
 
 func TestBenStringEmpty(t *testing.T) {
 	byteArray := []byte("")
-	_, _, err := ParseString(byteArray)
+	_, _, err := decodeString(byteArray)
 
 	if err == nil {
 		t.Errorf("EOF error absent")
@@ -29,7 +29,7 @@ func TestBenStringEmpty(t *testing.T) {
 
 func TestBenStringOneDigit(t *testing.T) {
 	byteArray := []byte("6:coding")
-	got, _, _ := ParseString(byteArray)
+	got, _, _ := decodeString(byteArray)
 	want := "coding"
 
 	if got.Value != want {
@@ -39,7 +39,7 @@ func TestBenStringOneDigit(t *testing.T) {
 
 func TestBenStringAbsentColon(t *testing.T) {
 	byteArray := []byte("6coding")
-	_, index, err := ParseString(byteArray)
+	_, index, err := decodeString(byteArray)
 
 	if err == nil {
 		t.Errorf("Should fail with a missing colon")
@@ -51,7 +51,7 @@ func TestBenStringAbsentColon(t *testing.T) {
 
 func TestBenStringInsufficientLength(t *testing.T) {
 	byteArray := []byte("6:codin")
-	_, index, err := ParseString(byteArray)
+	_, index, err := decodeString(byteArray)
 
 	if err == nil {
 		t.Errorf("Should fail with a missing colon")
@@ -63,7 +63,7 @@ func TestBenStringInsufficientLength(t *testing.T) {
 
 func TestBenIntegerValidInput(t *testing.T) {
 	byteArray := []byte("i32e")
-	got, _, _ := ParseInteger(byteArray)
+	got, _, _ := decodeInteger(byteArray)
 
 	want := int64(32)
 
@@ -74,7 +74,7 @@ func TestBenIntegerValidInput(t *testing.T) {
 
 func TestBenIntegerMissingI(t *testing.T) {
 	byteArray := []byte("32e")
-	_, index, err := ParseInteger(byteArray)
+	_, index, err := decodeInteger(byteArray)
 
 	if err == nil {
 		t.Errorf("Should fail with error")
@@ -86,7 +86,7 @@ func TestBenIntegerMissingI(t *testing.T) {
 
 func TestBenIntegerMissingE(t *testing.T) {
 	byteArray := []byte("i32")
-	_, index, err := ParseInteger(byteArray)
+	_, index, err := decodeInteger(byteArray)
 
 	if err == nil {
 		t.Errorf("Should fail with error")
@@ -98,11 +98,11 @@ func TestBenIntegerMissingE(t *testing.T) {
 
 func TestBenIntegerNegative(t *testing.T) {
 	byteArray := []byte("i-1e")
-	got, index, err := ParseInteger(byteArray)
+	got, index, err := decodeInteger(byteArray)
 
 	want := int64(-1)
 	if got.Value != want {
-		t.Errorf("Failed to parse. Expected %d, got %d", want, got.Value)
+		t.Errorf("Failed to Decode. Expected %d, got %d", want, got.Value)
 	}
 
 	if index != 4 {
@@ -116,7 +116,7 @@ func TestBenIntegerNegative(t *testing.T) {
 
 func TestBenListEmpty(t *testing.T) {
 	byteArray := []byte("le")
-	got, i, _ := ParseList(byteArray)
+	got, i, _ := decodeList(byteArray)
 	want := []Value{}
 
 	if !slices.Equal(got.Value, want) {
@@ -131,7 +131,7 @@ func TestBenListEmpty(t *testing.T) {
 
 func TestBenListSingleInteger(t *testing.T) {
 	byteArray := []byte("li1ee")
-	got, i, _ := ParseList(byteArray)
+	got, i, _ := decodeList(byteArray)
 	want := []Value{
 		Integer{ Value: 1 },
 	}
@@ -148,7 +148,7 @@ func TestBenListSingleInteger(t *testing.T) {
 
 func TestBenListNegativeInteger(t *testing.T) {
 	byteArray := []byte("li-1ee")
-	got, i, _ := ParseList(byteArray)
+	got, i, _ := decodeList(byteArray)
 	want := []Value{
 		Integer{ Value: -1 },
 	}
@@ -165,7 +165,7 @@ func TestBenListNegativeInteger(t *testing.T) {
 
 func TestBenListNegativeIntegerAndString(t *testing.T) {
 	byteArray := []byte("li-1e6:codinge")
-	got, i, _ := ParseList(byteArray)
+	got, i, _ := decodeList(byteArray)
 	want := []Value{
 		Integer{ Value: -1 },
 		String{ Value: "coding" },
@@ -184,7 +184,7 @@ func TestBenListNegativeIntegerAndString(t *testing.T) {
 
 func TestBenListMultipleStringsInvalid(t *testing.T) {
 	byteArray := []byte("l4:star4:wars")
-	_, _, err := ParseList(byteArray)
+	_, _, err := decodeList(byteArray)
 	if err == nil {
 		t.Errorf("Expected error because of invalid string, received %s", err)
 	}	
@@ -192,7 +192,7 @@ func TestBenListMultipleStringsInvalid(t *testing.T) {
 
 func TestBenListMultipleStringsValid(t *testing.T) {
 	byteArray := []byte("l4:star4:warse")
-	got, i, _ := ParseList(byteArray)
+	got, i, _ := decodeList(byteArray)
 	want := []Value{
 		String{ Value: "star" },
 		String{ Value: "wars" },
@@ -210,7 +210,7 @@ func TestBenListMultipleStringsValid(t *testing.T) {
 
 func TestBenListEmptyStringValid(t *testing.T) {
 	byteArray := []byte("l0:e")
-	got, i, _ := ParseList(byteArray)
+	got, i, _ := decodeList(byteArray)
 	want := []Value{
 		String{ Value: "" },
 	}
@@ -227,7 +227,7 @@ func TestBenListEmptyStringValid(t *testing.T) {
 
 func TestBenDictEmpty(t *testing.T) {
 	byteArray := []byte("de")
-	got, i, _ := ParseDict(byteArray)
+	got, i, _ := decodeDict(byteArray)
 
 	want := map[string]Value{}
 
@@ -243,7 +243,7 @@ func TestBenDictEmpty(t *testing.T) {
 
 func TestBenDictSingleInteger(t *testing.T) {
 	byteArray := []byte("d1:ai1ee")
-	got, i, _ := ParseDict(byteArray)
+	got, i, _ := decodeDict(byteArray)
 
 	want := map[string]Value{
 		"a": Integer{Value: 1},
@@ -261,7 +261,7 @@ func TestBenDictSingleInteger(t *testing.T) {
 
 func TestBenDictSingleString(t *testing.T) {
 	byteArray := []byte("d3:key5:valuee")
-	got, i, _ := ParseDict(byteArray)
+	got, i, _ := decodeDict(byteArray)
 
 	want := map[string]Value{
 		"key": String{Value: "value"},
@@ -279,7 +279,7 @@ func TestBenDictSingleString(t *testing.T) {
 
 func TestBenDictMultipleEntries(t *testing.T) {
 	byteArray := []byte("d1:ai1e1:b3:foo1:ci-5ee")
-	got, i, _ := ParseDict(byteArray)
+	got, i, _ := decodeDict(byteArray)
 
 	want := map[string]Value{
 		"a": Integer{Value: 1},
@@ -300,7 +300,7 @@ func TestBenDictMultipleEntries(t *testing.T) {
 func TestBenDictMissingLeadingD(t *testing.T) {
 	byteArray := []byte("1:ai1ee")
 
-	_, _, err := ParseDict(byteArray)
+	_, _, err := decodeDict(byteArray)
 
 	if err == nil {
 		t.Fatal("Expected an error, got nil")
@@ -310,7 +310,7 @@ func TestBenDictMissingLeadingD(t *testing.T) {
 func TestBenDictNonStringKey(t *testing.T) {
 	byteArray := []byte("di1e1:ae")
 
-	_, _, err := ParseDict(byteArray)
+	_, _, err := decodeDict(byteArray)
 
 	if err == nil {
 		t.Fatal("Expected an error, got nil")
@@ -320,7 +320,7 @@ func TestBenDictNonStringKey(t *testing.T) {
 func TestBenDictMissingValue(t *testing.T) {
 	byteArray := []byte("d1:ae")
 
-	_, _, err := ParseDict(byteArray)
+	_, _, err := decodeDict(byteArray)
 
 	if err == nil {
 		t.Fatal("Expected an error, got nil")
@@ -330,17 +330,17 @@ func TestBenDictMissingValue(t *testing.T) {
 func TestBenDictMissingTrailingE(t *testing.T) {
 	byteArray := []byte("d1:ai1e")
 
-	_, _, err := ParseDict(byteArray)
+	_, _, err := decodeDict(byteArray)
 
 	if err == nil {
 		t.Fatal("Expected an error, got nil")
 	}
 }
 
-func TestParseValueNestedLists(t *testing.T) {
+func TestDecodeValueNestedLists(t *testing.T) {
 	input := []byte("lli1ei2eei3ee")
 
-	got, i, err := ParseValue(input)
+	got, i, err := DecodeValue(input)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -366,10 +366,10 @@ func TestParseValueNestedLists(t *testing.T) {
 	}
 }
 
-func TestParseValueDictWithList(t *testing.T) {
+func TestDecodeValueDictWithList(t *testing.T) {
 	input := []byte("d4:listli1e3:abcee")
 
-	got, _, err := ParseValue(input)
+	got, _, err := DecodeValue(input)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -390,10 +390,10 @@ func TestParseValueDictWithList(t *testing.T) {
 	}
 }
 
-func TestParseValueListOfDicts(t *testing.T) {
+func TestDecodeValueListOfDicts(t *testing.T) {
 	input := []byte("ld1:ai1eed1:bi2eee")
 
-	got, _, err := ParseValue(input)
+	got, _, err := DecodeValue(input)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -418,10 +418,10 @@ func TestParseValueListOfDicts(t *testing.T) {
 	}
 }
 
-func TestParseValueNestedDicts(t *testing.T) {
+func TestDecodeValueNestedDicts(t *testing.T) {
 	input := []byte("d5:innerd1:ai42eee")
 
-	got, _, err := ParseValue(input)
+	got, _, err := DecodeValue(input)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -441,10 +441,10 @@ func TestParseValueNestedDicts(t *testing.T) {
 	}
 }
 
-func TestParseValueDeepMixed(t *testing.T) {
+func TestDecodeValueDeepMixed(t *testing.T) {
 	input := []byte("d1:ali1ed1:b3:fooeli2ei3eeee")
 
-	got, _, err := ParseValue(input)
+	got, _, err := DecodeValue(input)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -475,7 +475,7 @@ func TestParseValueDeepMixed(t *testing.T) {
 	}
 }
 
-func TestParseValueEmptyContainers(t *testing.T) {
+func TestDecodeValueEmptyContainers(t *testing.T) {
 	tests := []struct {
 		name  string
 		input string
@@ -499,13 +499,13 @@ func TestParseValueEmptyContainers(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, i, err := ParseValue([]byte(tt.input))
+			got, i, err := DecodeValue([]byte(tt.input))
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ParseValue(%q)\nwant: %#v\ngot:  %#v", tt.input, tt.want, got)
+				t.Errorf("DecodeValue(%q)\nwant: %#v\ngot:  %#v", tt.input, tt.want, got)
 			}
 
 			if i != len(tt.input) {
@@ -515,40 +515,40 @@ func TestParseValueEmptyContainers(t *testing.T) {
 	}
 }
 
-func TestParseValueUnterminatedNestedList(t *testing.T) {
+func TestDecodeValueUnterminatedNestedList(t *testing.T) {
 	input := []byte("lli1ei2e")
 
-	_, _, err := ParseValue(input)
+	_, _, err := DecodeValue(input)
 
 	if err == nil {
 		t.Fatal("expected error")
 	}
 }
 
-func TestParseValueUnterminatedDict(t *testing.T) {
+func TestDecodeValueUnterminatedDict(t *testing.T) {
 	input := []byte("d1:ad1:bi2ee")
 
-	_, _, err := ParseValue(input)
+	_, _, err := DecodeValue(input)
 
 	if err == nil {
 		t.Fatal("expected error")
 	}
 }
 
-func TestParseValueInvalidNestedValue(t *testing.T) {
+func TestDecodeValueInvalidNestedValue(t *testing.T) {
 	input := []byte("li1exe")
 
-	_, _, err := ParseValue(input)
+	_, _, err := DecodeValue(input)
 
 	if err == nil {
 		t.Fatal("expected error")
 	}
 }
 
-func TestParseValueVeryDeep(t *testing.T) {
+func TestDecodeValueVeryDeep(t *testing.T) {
 	input := []byte("d1:ad1:bd1:cli1ei2e2:hieeee")
 
-	got, _, err := ParseValue(input)
+	got, _, err := DecodeValue(input)
 	if err != nil {
 		t.Fatal(err)
 	}
